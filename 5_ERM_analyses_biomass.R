@@ -342,7 +342,7 @@ summary <- dat.a.ind %>%
 # plot
 plot <- ggplot(summary, aes(x = p_level, y = prop, fill = plant_sp)) +
   geom_bar(stat = "identity") +
-  labs(x = "Plant diversity", y = "Proportion", fill = "Plant species") +
+  labs(x = "Plant diversity", y = "Percent", fill = "Plant species") +
   scale_y_continuous(labels = scales::percent_format()) +
   theme_minimal() +
   theme(text = element_text(size = 15, family = "Tahoma"),
@@ -380,7 +380,7 @@ summary <- dat.a.ind.f %>%
 # plot
 plot <- ggplot(summary, aes(x = p_level, y = prop, fill = fungal_sp)) +
   geom_bar(stat = "identity") +
-  labs(x = "Plant diversity", y = "Proportion", fill = "Fungal species") +
+  labs(x = "Fungal diversity", y = "Percent", fill = "Fungal species") +
   scale_y_continuous(labels = scales::percent_format()) +
   theme_minimal() +
   theme(text = element_text(size = 15, family = "Tahoma"),

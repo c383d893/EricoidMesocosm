@@ -48,10 +48,10 @@ anova(colmod)
 ref <- emmeans(colmod, pairwise~f_level2, data = coldat, type = "response")
 ref.table <- as.data.frame(ref$emmeans) 
 
-plot <- ggplot(ref.table, aes(f_level2, prob, color=f_level2)) + 
+plot <- ggplot(ref.table, aes(f_level2, prob*100, color=f_level2)) + 
   geom_point(position=position_dodge(1), size =4) + 
-  geom_errorbar(aes(ymin=prob-SE, ymax=prob+SE), width=0.3,size=1,alpha = 0.8, position=position_dodge(1)) + 
-  geom_point(data = coldat, aes(f_level2, percent, color = f_level2), 
+  geom_errorbar(aes(ymin=prob*100-SE*100, ymax=prob*100+SE*100), width=0.3,size=1,alpha = 0.8, position=position_dodge(1)) + 
+  geom_point(data = coldat, aes(f_level2, percent*100, color = f_level2), 
              position = position_jitter(width = 0.2), alpha = 0.5) + 
   scale_y_continuous()+
   labs(y = "Root colonization (%)", x = "Fungal diversity", color = "Fungal diversity") +
@@ -62,7 +62,7 @@ plot <- ggplot(ref.table, aes(f_level2, prob, color=f_level2)) +
         axis.text.y=element_text(size = 13),
         legend.position = "none") +
   scale_color_manual(values = f_colors) +
-  ylim(0,0.8)
+  ylim(0,80)
 
 png("figures/colonization_sterilevs.inoc.jpg", width = 6, height = 5, units = 'in', res = 300)
 plot
@@ -77,10 +77,10 @@ anova(colmod)
 ref <- emmeans(colmod, pairwise~f_level, data = coldat, type = "response")
 ref.table <- as.data.frame(ref$emmeans)
 
-plot <- ggplot(ref.table, aes(f_level, prob, color=f_level)) + 
+plot <- ggplot(ref.table, aes(f_level, prob*100, color=f_level)) + 
   geom_point(position=position_dodge(1), size =4) + 
-  geom_errorbar(aes(ymin=prob-SE, ymax=prob+SE), width=0.3,size=1,alpha = 0.8, position=position_dodge(1)) + 
-  geom_point(data = coldat, aes(f_level, percent, color = f_level), 
+  geom_errorbar(aes(ymin=prob*100-SE*100, ymax=prob*100+SE*100), width=0.3,size=1,alpha = 0.8, position=position_dodge(1)) + 
+  geom_point(data = coldat, aes(f_level, percent*100, color = f_level), 
              position = position_jitter(width = 0.2), alpha = 0.5) + 
   theme_bw()+
   scale_y_continuous()+
@@ -92,7 +92,7 @@ plot <- ggplot(ref.table, aes(f_level, prob, color=f_level)) +
         axis.text.y=element_text(size = 13),
         legend.position = "none") +
   scale_color_manual(values = f_colors) +
-  ylim(0,1.0)
+  ylim(0,100)
 
 png("figures/colonization_sterilevs.f_level.jpg", width = 6, height = 5, units = 'in', res = 300)
 plot
