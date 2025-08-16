@@ -21,7 +21,9 @@
 ###### PLOTS CREATED: 
 # MGR_per_plevel_per_sp.jpg --> plot displaying MGR per p_level per plant_sp; individual y-axis for each small plot
 # Masterplot_MGR_flevel.jpg --> plot displaying MGR for each individual combination of f_level*plant_sp*p_level; f_level on x-axis
+# Masterplot_MGR_KLA_flevel.jpg --> plot displaying MGR for f_level*Kalmia_latifolia*p_level; f_level on x-axis
 # Masterplot_MGR_plevel.jpg --> plot displaying MGR for each individual combination of f_level*plant_sp*p_level; p_level on x-axis
+# Masterplot_MGR_KLA_plevel.jpg --> plot displaying MGR for f_level*Kalmia_latifolia*p_level; p_level on x-axis
 
 #######################
 #### Load Packages ####
@@ -37,6 +39,8 @@ library(tibble)
 library(stringr)
 library(ggplot2)
 library(svglite)
+library(RColorBrewer)
+library(patchwork)
 
 ############################
 ###### Fungal species ######
@@ -181,6 +185,19 @@ rm(list = ls())
 ###### load data 
 biomass_df <- readRDS("data/MGR_biomass_prep.rds")
 
+# write plant species in full length --> match the tip of the phylogenetic tree
+biomass_df = transform(biomass_df, plant_sp=gsub(pattern="PJA", replacement="Pieris japonica", plant_sp))
+biomass_df = transform(biomass_df, plant_sp=gsub(pattern="GPR", replacement="Gaultheria procumbens", plant_sp))
+biomass_df = transform(biomass_df, plant_sp=gsub(pattern="VCO", replacement="Vaccinium corymbosum", plant_sp))
+biomass_df = transform(biomass_df, plant_sp=gsub(pattern="VVI", replacement="Vaccinium vitis-idaea", plant_sp))
+biomass_df = transform(biomass_df, plant_sp=gsub(pattern="KLA", replacement="Kalmia latifolia", plant_sp))
+biomass_df = transform(biomass_df, plant_sp=gsub(pattern="GSH", replacement="Gaultheria shallon", plant_sp))
+biomass_df = transform(biomass_df, plant_sp=gsub(pattern="VAN", replacement="Vaccinium angustifolium", plant_sp))
+biomass_df = transform(biomass_df, plant_sp=gsub(pattern="VMY", replacement="Vaccinium myrtillus", plant_sp))
+biomass_df = transform(biomass_df, plant_sp=gsub(pattern="CVU", replacement="Calluna vulgaris", plant_sp))
+biomass_df = transform(biomass_df, plant_sp=gsub(pattern="VMA", replacement="Vaccinium macrocarpon", plant_sp))
+biomass_df = transform(biomass_df, plant_sp=gsub(pattern="GMI", replacement="Gaultheria miqueliana", plant_sp))
+
 ######  only select non-sterile samples 
 biomass_df_nstr = subset(biomass_df, biomass_df[,"f_level"]!= 0)
 
@@ -270,91 +287,29 @@ ref <- emmeans(m_psp_plevel_flevel, pairwise ~ p_level | plant_sp * f_level, dat
 pairwise_df <- as.data.frame(ref$contrasts) %>% filter(p.value < 0.05)
 write.csv(pairwise_df, file = "results/contrasts_MGR_3way_plevel.csv", row.names = FALSE)
 
-#######################################################
-########## PLOT BMGR MASTERPLOT PER F_LEVEL ###########
-#######################################################
+###########################################
+########## PLOTS MGR PER F_LEVEL ##########
+###########################################
 
-# define a consistent color palette for fung_sp
-f_level_colors <- c(
-  "1" = "#fc9403",
-  "2" = "#379e20",
-  "4" = "#7f209e",
-  "7" = "#03d7fc"
-)
+#######################
+#### Masterplot f_level
 
+###### set color palette
+f_colors <- brewer.pal(9, "BuPu")[5:9]   # Fungal diversity
 
-# add a column indicating if CI crosses zero
-summary_means_sp_per_flevel <- summary_means_sp_per_flevel %>%
-  mutate(cl_crosses_zero = ifelse(lower.CL < 0 & upper.CL > 0, "dashed", "solid"))
-
-# create a variable for line types
-summary_means_sp_per_flevel$line_type <- ifelse(
-  summary_means_sp_per_flevel$lower.CL < 0 & summary_means_sp_per_flevel$upper.CL > 0, 
-  "yes", 
-  "no"
-)
-
-# create letters per facet
-cld_facet <- cld(
-  means_sp_per_flevel,               
-  by       = c("plant_sp", "p_level"),      # do a separate CLD in every facet
-  Letters  = letters,                       
-  adjust   = "sidak"
-) %>% 
-  as_tibble() %>%                           
-  mutate(
-    .group = str_trim(.group),              
-    f_level = factor(f_level, levels = c("1","2","4","7"))
-  )
-
-# merge with the summary that feeds ggplot 
-summary_means_sp_per_flevel_letters <- summary_means_sp_per_flevel %>% 
-  left_join(
-    cld_facet %>% 
-      dplyr::select(f_level, plant_sp, p_level, .group),
-    by = c("f_level", "plant_sp", "p_level")
-  ) %>%
-  group_by(plant_sp, p_level) %>%
-  mutate(
-    # count number of unique letters in this facet
-    unique_groups = n_distinct(.group)
-  ) %>%
-  ungroup() %>%
-  # keep only rows where >1 letter group exists in that facet
-  filter(unique_groups > 1)
-
-# make plot 
-plot <- ggplot(summary_means_sp_per_flevel, aes(x = f_level, y = response, fill = f_level, color = f_level)) +
-  geom_text(
-    data = summary_means_sp_per_flevel_letters,
-    aes(x = f_level, label = .group),
-    y = 8.5,               # fixed height above your y-limit of 5
-    color = "black",
-    size       = 3,
-    vjust      = 0,          # text sits on top of y_lab
-    show.legend = FALSE
-  )+
+masterplot_f_level_newcolor <- ggplot(
+  summary_means_sp_per_flevel, aes(x = f_level, y = response, fill = f_level, color = f_level)) +
   geom_hline(yintercept = 0, color = "black", linetype = "solid", size = 0.5) +
   geom_pointrange(
     aes(
-      ymin = lower.CL, ymax = upper.CL, 
-      linetype = line_type  # Map the line type
+      ymin = lower.CL, ymax = upper.CL
     ),
     fatten = 3.5, 
     size = 0.6, 
     position = position_dodge(width = 0.6)
   ) +
-  scale_fill_manual(values = f_level_colors) +
-  scale_color_manual(values = f_level_colors) +
-  scale_linetype_manual(
-    values = c("yes" = "dashed", "no" = "solid"),  # Map line types
-    guide = guide_legend(override.aes = list(
-      color = "black", 
-      size = 0.5, 
-      fill = NA, 
-      shape = NA  # Remove points from the legend
-    ))
-  ) +
+  scale_fill_manual(values = f_colors) +      
+  scale_color_manual(values = f_colors) +     
   scale_y_continuous(
     limits = c(-3, 9),
     sec.axis = sec_axis(transform = ~., name = "Plant diversity level", breaks = NULL)
@@ -370,8 +325,7 @@ plot <- ggplot(summary_means_sp_per_flevel, aes(x = f_level, y = response, fill 
   labs(
     title = "MGR",
     x = "Fungal diversity level",
-    y = "MGR",
-    linetype = "CI crosses 0"  # Legend title for line type
+    y = "MGR"
   ) +
   theme_minimal() +
   theme(
@@ -382,95 +336,92 @@ plot <- ggplot(summary_means_sp_per_flevel, aes(x = f_level, y = response, fill 
     plot.margin = margin(t = 5, r = 5, b = 10, l = 30)
   )
 
-png("figures/Masterplot_MGR_flevel.jpg", width = 10, height = 10, units = 'in', res = 300)
-plot
+png("figures/Masterplot_MGR_flevel.jpg", width = 17, height = 10, units = 'in', res = 300)
+masterplot_f_level_newcolor
 dev.off()
 
-#######################################################
-########## PLOT BMGR MASTERPLOT PER P_LEVEL ###########
-#######################################################
+##########################
+#### only Kalmia latifolia
 
-# define a consistent color palette for fung_sp
-p_level_colors <- c(
-  "1" = "#fc9403",
-  "2" = "#379e20",
-  "4" = "#7f209e",
-  "8" = "#03d7fc"
-)
-
-
-# add a column indicating if CI crosses zero
-summary_means_sp_per_plevel <- summary_means_sp_per_plevel %>%
-  mutate(cl_crosses_zero = ifelse(lower.CL < 0 & upper.CL > 0, "dashed", "solid"))
-
-# create a variable for line types
-summary_means_sp_per_plevel$line_type <- ifelse(
-  summary_means_sp_per_flevel$lower.CL < 0 & summary_means_sp_per_plevel$upper.CL > 0, 
-  "yes", 
-  "no"
-)
-
-# create letters per facet
-cld_facet_p <- cld(
-  means_sp_per_plevel,               
-  by       = c("plant_sp", "f_level"),      # do a separate CLD in every facet
-  Letters  = letters,                       
-  adjust   = "sidak"
-) %>% 
-  as_tibble() %>%                           
-  mutate(
-    .group = str_trim(.group),             
-    p_level = factor(p_level, levels = c("1","2","4","8"))
+masterplot_f_level_KLA <- ggplot(
+  filter(summary_means_sp_per_flevel, plant_sp == "Kalmia latifolia"),
+  aes(x = f_level, y = response, fill = f_level, color = f_level)
+) +
+  geom_hline(yintercept = 0, color = "black", linetype = "solid", size = 0.5) +
+  geom_pointrange(
+    aes(ymin = lower.CL, ymax = upper.CL),
+    fatten = 3.5,
+    size = 0.6,
+    position = position_dodge(width = 0.6)
+  ) +
+  scale_fill_manual(values = f_colors, name = "Fungal diversity") +
+  scale_color_manual(values = f_colors, name = "Fungal diversity") +
+  scale_linetype_manual(
+    values = c("yes" = "dashed", "no" = "solid"),
+    guide = guide_legend(override.aes = list(
+      color = "black",
+      size = 0.5,
+      fill = NA,
+      shape = NA
+    ))
+  ) +
+  scale_y_continuous(
+    limits = c(-3, 9),
+    sec.axis = sec_axis(transform = ~., breaks = NULL)
+  ) +
+  facet_wrap(~ p_level, nrow = 1) +   # Arrange panels horizontally
+  geom_point(
+    data = filter(biomass_df_nstr, plant_sp == "KLA"),
+    aes(x = f_level, y = response, fill = f_level, color = f_level),
+    alpha = 0.2,
+    size = 0.9,
+    position = position_jitter(width = 0.2, height = 0)
+  ) +
+  labs(
+    title = "MGR for Kalmia latifolia",
+    x = NULL,
+    y = "MGR"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    axis.text.x = element_text(hjust = 1, size = 12),
+    strip.text = element_text(size = 12, face = "bold"),
+    panel.grid.minor = element_blank(),
+    plot.margin = margin(t = 5, r = 5, b = 10, l = 30)
   )
 
-# merge with the summary that feeds ggplot 
-summary_means_sp_per_plevel_letters <- summary_means_sp_per_plevel %>% 
-  left_join(
-    cld_facet_p %>% 
-      dplyr::select(p_level, plant_sp, f_level, .group),
-    by = c("p_level", "plant_sp", "f_level")
-  ) %>%
-  group_by(plant_sp, f_level) %>%
-  mutate(
-    # count number of unique letters in this facet
-    unique_groups = n_distinct(.group)
-  ) %>%
-  ungroup() %>%
-  # keep only rows where >1 letter group exists in that facet
-  filter(unique_groups > 1)
+masterplot_f_level_KLA <- masterplot_f_level_KLA + 
+  plot_annotation(caption = "Plant diversity") &
+  theme(plot.caption = element_text(hjust = 0.5, size = 12, face = "bold", margin = margin(t = 10)))
 
-# make plot 
-plot <- ggplot(summary_means_sp_per_plevel, aes(x = p_level, y = response, fill = p_level, color = p_level)) +
-  geom_text(
-    data = summary_means_sp_per_plevel_letters,
-    aes(x = p_level, label = .group),
-    y = 8.5,               # fixed height above your y-limit of 5
-    color = "black",
-    size       = 3,
-    vjust      = 0,          # text sits on top of y_lab
-    show.legend = FALSE
-  )+
+png("figures/Masterplot_MGR_KLA_flevel.jpg", width = 8, height = 5, units = 'in', res = 300)
+masterplot_f_level_KLA
+dev.off()
+
+###########################################
+########## PLOTS MGR PER P_LEVEL ##########
+###########################################
+
+#######################
+#### Masterplot p_level
+
+###### set new color palette
+p_colors <- brewer.pal(9, "YlGn")[5:9]   # Plant diversity
+
+###### make plot 
+masterplot_p_level_newcolor <- ggplot(summary_means_sp_per_plevel, aes(x = p_level, y = response, fill = p_level, color = p_level)) +
   geom_hline(yintercept = 0, color = "black", linetype = "solid", size = 0.5) +
   geom_pointrange(
     aes(
-      ymin = lower.CL, ymax = upper.CL, 
-      linetype = line_type  # Map the line type
+      ymin = lower.CL, ymax = upper.CL
     ),
     fatten = 3.5, 
     size = 0.6, 
     position = position_dodge(width = 0.6)
   ) +
-  scale_fill_manual(values = p_level_colors) +
-  scale_color_manual(values = p_level_colors) +
-  scale_linetype_manual(
-    values = c("yes" = "dashed", "no" = "solid"),  # Map line types
-    guide = guide_legend(override.aes = list(
-      color = "black", 
-      size = 0.5, 
-      fill = NA, 
-      shape = NA  # Remove points from the legend
-    ))
-  ) +
+  scale_fill_manual(values = p_colors) +
+  scale_color_manual(values = p_colors) +
   scale_y_continuous(
     limits = c(-3, 9),
     sec.axis = sec_axis(transform = ~., name = "Fungal diversity level", breaks = NULL)
@@ -498,6 +449,56 @@ plot <- ggplot(summary_means_sp_per_plevel, aes(x = p_level, y = response, fill 
     plot.margin = margin(t = 5, r = 5, b = 10, l = 30)
   )
 
-png("figures/Masterplot_MGR_plevel.jpg", width = 10, height = 10, units = 'in', res = 300)
-plot
+png("figures/Masterplot_MGR_plevel.jpg", width = 17, height = 10, units = 'in', res = 300)
+masterplot_p_level_newcolor
+dev.off()
+
+##########################
+#### only Kalmia latifolia
+
+masterplot_p_level_KLA <- ggplot(
+  filter(summary_means_sp_per_plevel, plant_sp == "Kalmia latifolia"),
+  aes(x = p_level, y = response, fill = p_level, color = p_level)
+) +
+  geom_hline(yintercept = 0, color = "black", linetype = "solid", size = 0.5) +
+  geom_pointrange(
+    aes(ymin = lower.CL, ymax = upper.CL),
+    fatten = 3.5,
+    size = 0.6,
+    position = position_dodge(width = 0.6)
+  ) +
+  scale_fill_manual(values = p_colors, name = "Plant diversity") +
+  scale_color_manual(values = p_colors, name = "Plant diversity") +
+  scale_y_continuous(
+    limits = c(-3, 9),
+    sec.axis = sec_axis(transform = ~., breaks = NULL)
+  ) +
+  facet_wrap(~ f_level, nrow = 1) +   # Arrange panels horizontally
+  geom_point(
+    data = filter(biomass_df_nstr, plant_sp == "KLA"),
+    aes(x = p_level, y = response, fill = p_level, color = p_level),
+    alpha = 0.2,
+    size = 0.9,
+    position = position_jitter(width = 0.2, height = 0)
+  ) +
+  labs(
+    title = "MGR for Kalmia latifolia",
+    x = NULL,
+    y = "MGR"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    axis.text.x = element_text(hjust = 1, size = 12),
+    strip.text = element_text(size = 12, face = "bold"),
+    panel.grid.minor = element_blank(),
+    plot.margin = margin(t = 5, r = 5, b = 10, l = 30)
+  )
+
+masterplot_p_level_KLA <- masterplot_p_level_KLA + 
+  plot_annotation(caption = "Fungal diversity") &
+  theme(plot.caption = element_text(hjust = 0.5, size = 12, face = "bold", margin = margin(t = 10)))
+
+png("figures/Masterplot_MGR_KLA_plevel.jpg", width = 8, height = 5, units = 'in', res = 300)
+masterplot_p_level_KLA
 dev.off()
